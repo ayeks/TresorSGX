@@ -1,5 +1,6 @@
 ## Terminal:
 
+```
 lars@lars-tresor-7559:~/Documents/gitlab/TresorSGX$ ./run_tresortest.sh 
 running test tresorsgx
 Step 1: make components
@@ -28,9 +29,10 @@ shutdown test tresorsgx
 rmmod test_tresor_lkm
 kill tresord
 rmmod tresorlkm
+```
 
 ## SYSLOG:
-
+```
 Aug 11 17:15:02 lars-tresor-7559 kernel: [ 9506.676955] tresorlkm: Entering: tresor_init
 Aug 11 17:15:02 lars-tresor-7559 kernel: [ 9506.677004] tresorlkm: tresor_init: Crypto Alg registered: 0
 Aug 11 17:15:04 lars-tresor-7559 tresord: started..
@@ -70,4 +72,4 @@ Aug 11 17:15:19 lars-tresor-7559 tresord: 10920 Caught signal: 15
 Aug 11 17:15:19 lars-tresor-7559 tresord: mon_nl_cb: 4, mon_nl_cb_fails:0, mon_nl_send:3, mon_nl_send_fails:0, mon_encrypt:1, mon_encrypt_fails:0, mon_decrypt:1, mon_decrypt_fails:0, mon_setkey:1, mon_setkey_fails:0
 Aug 11 17:15:19 lars-tresor-7559 tresord: 10920 sgxDestroyEnclave: tresorencl destroyed..
 Aug 11 17:15:21 lars-tresor-7559 kernel: [ 9525.731692] tresorlkm: tresor_exit exiting module
-
+```
