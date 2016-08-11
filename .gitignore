@@ -2,4 +2,12 @@
 *.so
 *.a
 *.pem
+*.cmd
+*.symvers
+*.order
+*.ko
+*.mod.c
+.tmp_versions
+sealedBlob.txt
 tresorencl_tester
+tresord
