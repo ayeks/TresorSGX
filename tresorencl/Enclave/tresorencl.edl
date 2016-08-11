@@ -1,0 +1,16 @@
+enclave {
+	
+	trusted {
+		public void enclInitCrypto(char algorithm, [in, size=key_len] unsigned char *key, size_t key_len);
+		public uint32_t enclInitSealedCrypto(char algorithm, [in, size=key_len] unsigned char *key, int key_len,[in,out, size=buf_len] unsigned char* buf, int buf_len, [out] int *seal_len);
+		public void enclEncrypt([in, size=in_len] unsigned char * in,  size_t in_len, [out, size=out_len] unsigned char  *out, size_t out_len);
+		public void enclDecrypt([in, size=in_len] unsigned char * in,  size_t in_len, [out, size=out_len] unsigned char  *out, size_t out_len);
+	};
+	
+	untrusted {
+		/* debugging functions */
+		void enclavePrintf([in, string] const char *string);
+		void enclavePrintInt([in] const int *num);
+		void enclavePrintHex([in, size=len] const char *output, int len);    
+	};
+};

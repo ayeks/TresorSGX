@@ -1,0 +1,5 @@
+*.o
+*.so
+*.a
+*.pem
+tresorencl_tester
