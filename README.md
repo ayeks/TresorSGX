@@ -56,32 +56,38 @@ The daemon creates the same Netlink interface as the kernel module and sends an 
 After initialization, the encryption or decryption process is straight forward. The encrypt and decrypt callback functions of our LKM are called by the user of the crypto API. The LKM then sends a Netlink message to the daemon, which calls the encrypt and decrypt functions of the enclave. The enclave performs the requested cryptographic operation and returns the encrypted or decrypted block which is passed back to the kernel via Netlink. Finally, the kernel module copies the block to the destination given by the caller of the crypto API and returns.
 
 ## Usage
+
 ### TresorSGX requirements
 
-1. SGX capable CPU
-2. SGX must be enabled in BIOS
-3. Intel SGX Linux SDK must be installed
-4. Intel SGX AESM Daemon must be running
+Because the new CPU instructions of the Intel Software Guard Extensions only current Intel CPU are able to execute the TresorSGX enclave. Have a look at the [SGX-hardware list](https://github.com/ayeks/SGX-hardware) for more information about SGX support.
+The requirements are: 
 
+1. a SGX capable CPU
+2. SGX must be enabled in BIOS (is default off)
+3. [Intel SGX Linux SDK](https://software.intel.com/en-us/sgx-sdk/download) must be installed
+4. Intel SGX AESM Daemon must be running (it is running by default if you installed the SDK)
+
+
+### Test TresorSGX
+
+TresorSGX can be tested by executing a single file. Just configure the paths in the [/tresorcommon/tresorcommon.h](/tresorcommon/tresorcommon.h) and execute the [run_tresortest.sh executable](/run_tresortest.sh). Analyse the results with: `tail -f /var/log/syslog` and compare them to [docu/example_output.md](/docu/example_output.md). Execute [shutdown_tresortest.sh executable](/shutdown_tresortest.sh) to shutdown TresorSGX.
 
 ### Installation of TresorSGX
 
-1. (optional) modify the configuration of TresorSGX
+If you want to install in a fixed position follow these steps:
+
+1. (optional) modify the paths in [/tresorcommon/tresorcommon.h](/tresorcommon/tresorcommon.h)
 2. (mandatory) build the TresorSGX LKM, Daemon, Enclave
 3. (optional) copy files to the location defined in the configuration
 4. (optional) add the TresorSGX LKM to \code{/etc/modules} to load the module on system boot
 5. (mandatory) load the TresorSGX LKM into the kernel
 6. (mandatory) execute the TresorSGX daemon if not configured to launch automatically
-7. (optional) build and load the Test TresorSGX LKM to test the cryptographic system
-
-
-### Test TresorSGX
-1. `./run_tresortest.sh`
-2. analyse results with: `tail -f /var/log/syslog`
-3. `./shutdown_tresortest.sh`
+7. (optional) build and load the [/test_tresor_lkm/](https://github.com/ayeks/TresorSGX/tree/master/test_tresor_lkm) kernel module to test the TresorSGX cryptographic system
 
 
 ### Setup TresorSGX container
+
+Follow these steps to create a single container-file which is encrypted with TresorSGX and can be mounted using cryptsetup:
 
 1. `dd if=/dev/zero bs=1M count=1024 of=container`
 2. `sudo losetup /dev/loop0 container` 
@@ -90,7 +96,7 @@ After initialization, the encryption or decryption process is straight forward. 
 5. `mkfs.ext2 /dev/loop0`
 6. `mount /dev/loop0 /media/tresor/`
 
-### Remove TresorSGX container 
+Follow these steps to remove the container:
 
 1. `umount /media/tresor/`
 2. `cryptsetup remove tresor`
@@ -99,6 +105,8 @@ After initialization, the encryption or decryption process is straight forward. 
 
 ### Setup TresorSGX partition on an USB stick
 
+Follow these steps to create a partition which is encrypted with TresorSGX and can be mounted using cryptsetup:
+
 0. start tresorlkm and tresord
 1. locate usb stick partition. e.g. `/dev/sdd1`
 2. `modprobe dm_mod`
@@ -106,16 +114,19 @@ After initialization, the encryption or decryption process is straight forward. 
 4. `mkfs.ext2 /dev/mapper/tresor`
 5. `mount /dev/mapper/tresor /media/tresor/`
 
-### Remove TresorSGX partition
+Follow these steps to remove the partition:
 
 1. `umount /media/tresor/`
 2. `cryptsetup remove tresor`
 
 ### Harden TresorSGX key setting
 
+If you want to harden the system by using the [tresor_setkey tool](/tresor_setkey/) modify the [/tresorcommon/tresorcommon.h](/tresorcommon/tresorcommon.h) as follows.
+
 1. modify line 57 of `tresorcommon.h` to:
 	`#define SETKEY_BYPIPE 	(1) // daemon opens a pipe for key setting`
 
+With that configuration the key inserted in the cryptsetup is just a dummy key. The daemon will open a pipe and will wait for the input of the real user password by the setkey tool.
 
 ## Contributing
 
