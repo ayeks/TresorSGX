@@ -3,13 +3,57 @@
 
 With release of the first CPUs with [Intel Software Guard Extensions](https://software.intel.com/en-us/sgx) in October 2015 and the [Intel SGX SDK](https://software.intel.com/en-us/sgx-sdk) in the first half of 2016, a new technology was made available to execute code in a secured *enclave*. These protected enclaves are shielded against access and modification of any outside application - privileged or not.
 
-## TresorSGX
+*TresorSGX* is a attempt to isolate and secure a operating system component of the Linux kernel. It outsources a functionality of a kernel module into a SGX container / enclave. TresorSGX provides a cryptographic algorithm for the Linux Crypto API which is executed in the secured container. **The cryptographic key material is guarded from unauthorised access of unprivileged and privileged components at any time.** This protects the disk-encryption system from cold-boot and DMA attacks on the key material.
 
-*TresorSGX* is a attempt to isolate and secure a operating system component of the Linux kernel. It outsources a functionality of a kernel module into a SGX container / enclave. TresorSGX provides a cryptographic algorithm for the Linux Crypto API which is executed in the secured container. The cryptographic key material is guarded from unauthorised access of unprivileged and privileged components at any time. This protects the disk-encryption system from cold-boot and DMA attacks on the key material.
+## Background: Intel SGX
 
-### Architecture
+If you are familiar with the Intel SGX Architecture and its security characteristics, you can skip this section. Otherwise it is highly recommended to read through to develop an understanding of the design decisions we made. If you want a more in-depth understanding of Intel SGX - besided the official documentation - I recommend the paper [Intel SGX explained by Costan and Devadas](https://eprint.iacr.org/2016/086).
 
-`TODO: Describe components and upload graphical overview.`
+### Background: Intel SGX Security Characteristics
+
+Intel also proposed [methods to use SGX to deploy trustworthy software solutions](https://software.intel.com/sites/default/files/article/413938/hasp-2013-innovative-instructions-for-trusted-solutions.pdf). This is achieved by using [attestation, provisioning and sealing techniques](https://software.intel.com/en-us/articles/innovative-technology-for-cpu-based-attestation-and-sealing).
+
+![Intel SGX Enclave](/docu/img/sgx_secured_enclave.png "Intel SGX Enclave")
+
+The enclave memory is secured against observation and modification of any non-enclave party. That excludes virtual machine monitors, ring-0 applications or other enclaves. This is achieved by encrypting the memory with a [in-CPU Memory Encryption Engine (MME)](https://software.intel.com/en-us/blogs/2016/02/26/memory-encryption-an-intel-sgx-underpinning-technology).
+
+Via a hard-coded private key the CPU is able to perform an attestation of itself against a challenger and to sign via public-key cryptography a measurement of an enclave. That can be used to guarantee the integrity of an enclave and for enclave attestation.
+
+Function calls into the enclave are provided via special instruction which perform checks on the callee and the function arguments. The same applies for function calls from the enclave to the outside. Interrupts and unplanned exits will not reveal secure information because an enclave can only be stopped in a secured area.
+
+SGX allows the usage of multiple enclave instances which are isolated against each other and from the system software.
+
+### Background: Intel SGX Architecture
+
+The Intel Software Guard Extensions consist of multiple parts. The basis builds the Intel Skylake CPU with its extended instruction set and memory access mechanisms. These instructions are used to create, launch, enter and exit an enclave. The protected memory, the Enclave Page Cache (EPC), for the enclave is allocated in the Processor Reserved Memory (PRM) and secured with a Memory Encryption Engine.
+
+![Intel SGX Archicture](/docu/img/sgx_arch_highlevel.png "Intel SGX Archicture")
+
+The untrusted host application can call trusted functions inside the enclave. Neither the input to the enclave, nor the output of the enclave can be fully trusted because a malicious OS can modify these channels. The enclave author has to take this into consideration developing security critical applications. To initiate the enclave a launch token is needed which can be retrieved with the help of the Intel Launch Enclave. The access to the Launch Enclave and other architectural enclaves (Quoting, Provisioning, etc) is provided by the AESM service in user space. SGX libraries provide the necessary methods to communicate with the AESM Service. **Enclaves can only be entered in user space.** However, creating and initiating an enclave is only possible in kernel space. Therefore, a privileged SGX module or driver must be installed in kernel space to manage the enclave page cache and calling the specific SGX instructions. The launched enclave can only be entered from an unprivileged user-mode application via special SGX instructions.
+
+## TresorSGX Design
+
+As previously described it is not possible to enter an enclave from kernel space. An enclave’s code has always to be executed in ring three with a reduced set of allowed instructions and a limited amount of available memory. To overcome these major limitations of SGX, it was decided to build an architecture which moves part of the kernel functionality to user space such that the core functionality can then be wrapped by an enclave. This enclave is implemented by a user space service or daemon which calls the Intel Launch enclave for initialisation. Once the enclave is running, functionality within the enclave can be used by the daemon. Consequently, the kernel first has to communicate with the daemon which then passes the request to the enclave.
+
+![TresorSGX Archicture](/docu/img/tresorsgx_arch.png "TresorSGX Archicture")
+
+TresorSGX is an exemplary implementation in the scope of full disk encryption. The TresorSGX LKM registers a new cipher within the crypto API of the Linux kernel which can then be used by dm-crypt. The encryption algorithm used for full disk encryption is implemented within an enclave, and thus it is guaranteed that the implementation cannot be tampered with. The key used for disk encryption is securely derived within the enclave from a password chosen by the user and a device specific salt. The user password can be entered with the help of a tool which communicates with the daemon directly in user mode and the salt is stored sealed to the enclave identity. Consequently, it cannot be unsealed on a different device
+
+### TresorSGX Workflow
+
+The overall functionality of the implementation is spread between the LKM and the user space daemon.
+
+**Initialising LKM and daemon:**
+When the kernel module is initialized, it first registers a Netlink family for the communication with the daemon. Once the Netlink socket is created, it starts the daemon via the user mode helper API. The daemon then creates and starts the enclave. Using the key setting functionality of the crypto API would leak the key or password to main memory, therefor a possibility is provided to directly set the password using only the daemon.
+
+**Deriving disk encryption key:**
+After the password has been read from the user, the daemon loads a predefined file from disk which contains the sealed salt. The enclave checks if the sealed salt is valid and unseals it. If the sealed data is not valid, it will generate a new salt and seal it. The Password-Based Key Derivation Function 2 (PBKDF2) is used to finally derive the disk encryption key from the user password and the salt.
+
+**Establish Netlink communication:**
+The daemon creates the same Netlink interface as the kernel module and sends an initialisation succeeded message to the kernel. The kernel receives the message and registers the new cipher at the crypto API.
+
+**Data encryption and decryption:**
+After initialization, the encryption or decryption process is straight forward. The encrypt and decrypt callback functions of our LKM are called by the user of the crypto API. The LKM then sends a Netlink message to the daemon, which calls the encrypt and decrypt functions of the enclave. The enclave performs the requested cryptographic operation and returns the encrypted or decrypted block which is passed back to the kernel via Netlink. Finally, the kernel module copies the block to the destination given by the caller of the crypto API and returns.
 
 ## Usage
 ### TresorSGX requirements
@@ -71,5 +115,10 @@ With release of the first CPUs with [Intel Software Guard Extensions](https://so
 
 1. modify line 57 of `tresorcommon.h` to:
 	`#define SETKEY_BYPIPE 	(1) // daemon opens a pipe for key setting`
+
+
+## Contributing
+
+The main drawback of TresorSGX in its disk encryption use case is the low performance. It operates at 1% of the standard AES implementation due the big overhead of the Netlink communication. The [performance analysis](/docu/performance_analysis.md) provides more information regarding that topic. If someone is able to replace or to improve the Netlink communication I am happy to support him on his way. 
 
 
