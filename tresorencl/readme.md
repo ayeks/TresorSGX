@@ -19,7 +19,7 @@ Building:
 ```
 # If there is no public/private key pair, execute:
 make configure
-# To build the enclave and enclave:
+# To build the enclave tester and the enclave:
 make
 ```
 
