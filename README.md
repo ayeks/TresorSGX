@@ -5,6 +5,8 @@ With release of the first CPUs with [Intel Software Guard Extensions](https://so
 
 *TresorSGX* is a attempt to isolate and secure a operating system component of the Linux kernel. It outsources a functionality of a kernel module into a SGX container / enclave. TresorSGX provides a cryptographic algorithm for the Linux Crypto API which is executed in the secured container. **The cryptographic key material is guarded from unauthorised access of unprivileged and privileged components at any time.** This protects the disk-encryption system from cold-boot and DMA attacks on the key material.
 
+TresorSGX was built during my master thesis at the [IT-Security chair](https://www1.cs.fau.de/) of the Department of Computer Science at the Friedrich-Alexander University (FAU) Erlangen Nuremberg. Have a look at [https://www1.cs.fau.de/sgx-kernel](https://www1.cs.fau.de/sgx-kernel) for more information about the thesis. 
+
 ## Background: Intel SGX
 
 If you are familiar with the Intel SGX Architecture and its security characteristics, you can skip this section. Otherwise it is highly recommended to read through to develop an understanding of the design decisions we made. If you want a more in-depth understanding of Intel SGX - besided the official documentation - I recommend the paper [Intel SGX explained by Costan and Devadas](https://eprint.iacr.org/2016/086).
