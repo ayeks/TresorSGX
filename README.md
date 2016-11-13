@@ -1,4 +1,9 @@
 # TresorSGX
+
+## WIP shared memory branch: Migration from Netlink to Shared Memory
+
+Because of the performance deficiencies and the overall complexity of the Netlink protocoll a switch to shared memory is prefered. This change affects only the kernel module and the daemon. The enclave will be left untouched.
+
 ## Introduction
 
 With release of the first CPUs with [Intel Software Guard Extensions](https://software.intel.com/en-us/sgx) in October 2015 and the [Intel SGX SDK](https://software.intel.com/en-us/sgx-sdk) in the first half of 2016, a new technology was made available to execute code in a secured *enclave*. These protected enclaves are shielded against access and modification of any outside application - privileged or not.
