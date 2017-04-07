@@ -152,10 +152,10 @@ uint32_t  enclInitSealedCrypto(char algorithm, unsigned char* user_key, int user
 	//enclavePrintf("enclInitSealedCrypto: run..");
 	pwrecord pwr = { 0 };
   	uint32_t err = TRESOR_OK;
-  	int need_len, plain_len, ret;
+  	int need_len = 0, plain_len = 0, ret = 0;
   	char buf[616]; // TODO blob_len
   	char plain[PWRECORD_ENCODING_LEN] = { 0 };
-  	int pwRecordValid;
+  	int pwRecordValid = 0;
   	pwRecordValid = 0;
 
 	//enclavePrintInt(blob_len);
